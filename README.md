@@ -2,9 +2,9 @@
 
 <div dir="rtl">
 
-قالب صفحة HTML واحدة لعرض مخطط قاعدة بيانات (ERD) بشكل تفاعلي وبالعربي. الصفحة ما تحتاج أي مكتبة، كلها JavaScript عادي، والـ CSS والـ JS داخل الملف نفسه.
+قالب HTML واحد يعرض مخطط قاعدة البيانات (ERD) بشكل تفاعلي وبالعربي: الجداول الجديدة والمعدّلة، وخطوط العلاقات، ووضع التركيز، وشريط جانبي فيه الشرح.
 
-مفيد لما تبي تشرح لفريقك **وش الجداول الجديدة، ووش اللي تغيّر في الجداول القديمة، وكيف يرتبطون ببعض**، بدل ما تعطيهم صورة ثابتة أو ملف SQL.
+جرّبه مباشرة: افتح [`index.html`](index.html) في المتصفح.
 
 </div>
 
@@ -12,98 +12,71 @@
 
 <div dir="rtl">
 
-## المميزات
+## البرومبت
 
-- **واجهة عربية (RTL)**، وأسماء الجداول والحقول تبقى بالإنجليزي وبخط Mono.
-- **تمييز التغييرات:** كل جدول عليه وسم `NEW` أو `MODIFIED` أو `EXISTING`، والحقول الجديدة داخل الجداول القديمة تظهر بخلفية خضراء.
-- **خطوط العلاقات:** منحنيات Bézier تبدأ من صف الـ FK في الجدول الابن وتنتهي عند صف الـ PK في الجدول الأب، ويمكن رسمها متقطعة.
-- **وضع التركيز:** لما تمرّر على جدول تبهت باقي الجداول، ويبقى الجدول وعلاقاته واضحين.
-- **التثبيت:** الضغط على جدول يثبّته، والضغط مرة ثانية أو على مكان فارغ أو زر ✕ (أو مفتاح Esc) يلغي التثبيت.
-- **شريط جانبي:** يعرض ملخص الجدول ومثال واقعي، والحقول المهمة والحالات (Enums) والعلاقات القابلة للضغط، وقاعدة مهمة.
-- **تكبير وتصغير:** من 0.35 إلى 1.6، وزر «ملاءمة» يضبط الحجم على عرض الشاشة.
-- **دعم الجوال:** الشريط الجانبي يتحول لـ bottom sheet يطلع من تحت.
-
-## الشكل المبدئي
+انسخ البرومبت بزر النسخ اللي فوق المربع، وعبّئ قسم **INPUT** بمخططك، وأعطه لأي نموذج لغوي. لو تركت INPUT فاضي يطلع لك مخطط تجريبي.
 
 </div>
 
-```
-┌──────────────────────────────────────────────────────────┬──────────────────────┐
-│ [−][ملاءمة][+]          عنوان المشروع                    │  اسم المشروع          │
-│               مرّر أو اضغط على أي جدول · 11 جديد · 2 معدّل │  مرّر أو اضغط على    │
-│        ■ مجموعة ■ مجموعة ■ مجموعة  [+ field] حقل جديد    │  أي جدول              │
-├──────────────────────────────────────────────────────────┤                      │
-│  col 0          col 1          col 2          col 3      │  ┌────────┬────────┐  │
-│ ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌────────┐  │  │ 11     │ 2      │  │
-│ │▀▀▀▀▀▀▀▀▀▀│   │▀▀▀▀▀▀▀▀▀▀│   │▀▀▀▀▀▀▀▀▀▀│   │▀▀▀▀▀▀▀▀│  │  │ جديدة  │ معدّلة │  │
-│ │Users MOD │   │Plans NEW │   │Invoices  │   │  ...   │  │  ├────────┼────────┤  │
-│ │PK Id     │◄──┤PK Id     │   │PK Id     │   │        │  │  │ 5 حقول │ 7 حالات│  │
-│ │   Email  │   │   Code   │   │FK SubId ●┼──►│        │  │  └────────┴────────┘  │
-│ │+  Referr…│   └──────────┘   └──────────┘   └────────┘  │                      │
-│ └──────────┘        ▲                                    │  الفكرة كلها في سطرين │
-│ ┌──────────┐   ┌────┴─────┐                              │  ...                  │
-│ │Products  │   │Subscript…│                              │  ┌ قاعدة مهمة ──────┐ │
-│ │ EXISTING │   │FK UserId●│                              │  │ ...              │ │
-│ └──────────┘   └──────────┘                              │  └──────────────────┘ │
-└──────────────────────────────────────────────────────────┴──────────────────────┘
-          canvas (قابل للتمرير والتكبير)                       sidebar 380px
-```
+````text
+Build a single self-contained HTML page: an interactive database schema (ERD) explorer. No frameworks, vanilla JS, all CSS/JS inline. UI language: Arabic (RTL) for all labels and explanations; table/field names stay in English (LTR, monospace).
 
-<div dir="rtl">
+## LAYOUT
+- Fixed top header (92px) on the left area, fixed right sidebar (380px, white, RTL, scrollable), and a scrollable canvas filling the rest.
+- Header: title + one-line subtitle (e.g. "hover or click a table · N new tables · M modified"), a color legend for table groups (small 10px squares), a legend chip "+ field" = new field in old table, and zoom buttons (− / fit / +) on the left.
+- Canvas: light warm background (#f6f5f2), tables arranged in columns (column index set per table), 320px wide cards, 90px column gap, 50px vertical gap. Canvas is scaled with CSS transform; zoom range 0.35–1.6; "fit" scales to container width (min 0.55) and refits on window resize.
+- Mobile (<900px): sidebar becomes a bottom sheet (46vh) that slides up when a table is focused.
 
-## الاستخدام
+## VISUAL STYLE
+- Fonts: "IBM Plex Sans Arabic" for text, "IBM Plex Mono" for names/types (Google Fonts).
+- Calm, neutral palette: ink #1d1c1a, muted #6b6862, borders #dedbd4 / #efede8. Group colors in oklch with similar lightness/chroma (blue, green, amber, purple, red) + grey #c9c5bd for existing tables.
+- Card: white, 8px radius, 1px border shadow, 4px colored top bar (group color), header 46px with English name (mono 600) + tag (NEW green / MODIFIED amber / EXISTING grey) on one side and Arabic name (muted, ellipsis) on the other.
+- Each field = 28px row: key column (PK/FK/UQ, tiny mono), field name (mono 13px), short Arabic note right-aligned (muted, ellipsis). Full "name · type · note" in the row's title tooltip.
+- New fields inside an existing table: light green background, 3px green left bar, green text, "+" in the key column if it has no key.
+- Card footer (30px, #faf9f7): "createdAt · updatedAt" (+ "· status" for new tables).
+- Existing/unchanged tables look subdued (greyer header name).
 
-1. افتح [`index.html`](index.html) في المتصفح. فيه مخطط تجريبي لمتجر إلكتروني يضيف ميزة الاشتراكات ونقاط الولاء.
-2. لعرض مخططك أنت، عدّل الكائنات الموجودة في قسم `DATA` أعلى السكربت فقط، والباقي ما يحتاج تعديل.
+## RELATIONSHIP LINES
+- One SVG layer behind the cards, drawn after layout. Each relation goes from the FK row of the child table to the first row (PK) of the parent.
+- Smooth cubic bezier curves: if both tables are in the same column, loop out to the left (~34px); otherwise connect the facing edges with horizontal control points (offset = max(60, 45% of distance)).
+- Marker: small filled circle at the FK end, short vertical bar at the PK end.
+- Relations from new tables/new fields are darker (#6f6a61); old ones lighter (#b3aea4). Optional dashed style (e.g. audit relations).
 
-### نموذج البيانات
+## INTERACTION
+- Hover a card → focus mode: all other cards fade to 0.28 opacity, related tables stay full, current card gets a 2px dark ring + shadow; all lines fade to 0.08 except the ones connected to it (dark, 2px). Sidebar shows its details.
+- Click a card → pins it (📌 after its name); hover no longer changes anything. Click again, click empty canvas, or the ✕ button in the sidebar → unpin and reset.
+- Empty sidebar state: eyebrow (project name), heading "hover or click any table", a short hint paragraph, a 2×2 stats grid (new tables, modified tables, new fields, new enums — computed or provided), a "the whole idea in two lines" section with inline code chips, and an amber "important rule" box.
+- Table sidebar: close button, eyebrow with group color dot + status ("new table · group" / "existing · fields added" / "existing · unchanged"), English name (mono 22px), Arabic name, a one-line TL;DR (bold-ish 16px), a grey "example" box with a real-world example, then sections:
+  - "what was added?" (green code chips) for modified tables
+  - "key fields" list: code chip + Arabic explanation
+  - "states · EnumName": pill chips "Arabic label  Key=1,2,3…"
+  - "related to": clickable chips (table name + relation type 1:1 / 1:N / M:N); clicking one pins that table and smoothly scrolls it into view
+  - "important rule" amber box (right border 3px)
 
-</div>
-
+## DATA MODEL (keep all data in two JS objects so the template is reusable)
 ```js
-// المجموعات وألوانها
-const G = {
-  sub: { c: 'oklch(0.64 0.11 250)', ar: 'الاشتراكات' },
-  old: { c: '#c9c5bd',              ar: 'جدول قائم' }
-};
-
-// f(name, type, key = '', note = '', isNew = false)
+const G = { groupKey: { c: 'oklch(...)', ar: 'Arabic group name' }, ..., old: {c:'#c9c5bd', ar:'existing table'} };
+const f = (name, type, key='', note='', isNew=false) => ({...});
 const T = {
-  Subscriptions: {
-    col: 1, group: 'sub', isNew: true, mod: false, ar: 'اشتراكات العملاء',
-    fields: [ f('Id','bigint','PK'), f('UserId','bigint','FK','المشترك') ],
-    tldr: 'سطر واحد يشرح الجدول',
-    ex: 'مثال واقعي — يدعم `code` بين علامتي backtick',
-    keys:    [['Status', 'شرح الحقل']],
-    newKeys: [['NewField', 'شرح الحقل الجديد']],   // للجداول المعدّلة
-    enumName: 'SubscriptionStatus',
-    enums: [['Active', 'نشط'], ['Canceled', 'ملغى']], // القيمة = الترتيب، أو ['Key','label',value]
-    rule: 'قاعدة مهمة'
+  TableName: {
+    col: 0, group: 'groupKey', isNew: true, mod: false, ar: 'Arabic name',
+    fields: [ f('Id','bigint','PK'), f('X','int','FK','note', /*isNew*/ false) ],
+    tldr: '...', ex: '...',
+    keys: [['Field','explanation']], newKeys: [['Field','explanation']],
+    enumName: 'EnumName', enums: [['Key','Arabic label']],
+    rule: '...'
   }
 };
-
-// [الابن, حقل FK, الأب, نوع العلاقة, متقطع؟]
-const R = [ ['Subscriptions', 'UserId', 'Users', '1:N', false] ];
-
-// نصوص الحالة الفارغة (اختيارية الإحصائيات — تُحسب تلقائياً لو null)
-const META = { project, title, hint, idea: [...], rule, stats: null };
+const R = [ ['ChildTable','ChildField','ParentTable','1:N', /*dashed*/ false] ];
 ```
+Escape all text before inserting into HTML.
 
-<div dir="rtl">
+## INPUT (replace with your own schema)
+- Project name / page title: ___
+- Groups (name + color): ___
+- Tables: for each → name, Arabic name, column, group, new/modified/existing, fields (name, type, key, note, new?), TL;DR, example, key fields, enum states, rule
+- Relations: child.field → parent (type)
+- Empty-state summary text and stats: ___
 
-> كل النصوص تمر على escape قبل ما تُضاف للـ HTML، والنص اللي بين علامتي backtick يظهر كـ code chip.
-
-## توليد الصفحة بالذكاء الاصطناعي
-
-البرومبت الكامل اللي بُني منه القالب موجود في [`PROMPT.md`](PROMPT.md). انسخه، وعبّئ قسم **INPUT** بمخططك، وأعطه لأي نموذج لغوي، وراح يطلع لك صفحة بنفس الشكل.
-
-## هيكل المستودع
-
-</div>
-
-```
-.
-├── index.html        # القالب + مخطط تجريبي
-├── PROMPT.md         # البرومبت الكامل
-└── docs/preview.png  # صورة المعاينة
-```
+If no schema is provided, generate a realistic sample schema of ~10–15 tables across 5 columns so the template is fully demonstrated.
+````
