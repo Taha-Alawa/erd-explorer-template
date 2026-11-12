@@ -1,0 +1,695 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>مستكشف المخطط</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#1d1c1a;--muted:#6b6862;--b1:#dedbd4;--b2:#efede8;--bg:#f6f5f2;
+  --side:380px;--head:92px;
+  --green:oklch(0.58 0.12 150);--greenbg:oklch(0.965 0.03 150);
+  --amber:oklch(0.62 0.12 70);--amberbg:oklch(0.97 0.035 85);--amberbd:oklch(0.78 0.12 75);
+  --mono:"IBM Plex Mono",ui-monospace,Menlo,Consolas,monospace;
+  --sans:"IBM Plex Sans Arabic",system-ui,-apple-system,"Segoe UI",sans-serif;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{font-family:var(--sans);color:var(--ink);background:var(--bg);overflow:hidden;-webkit-font-smoothing:antialiased}
+button{font:inherit;color:inherit}
+
+/* ---------- header ---------- */
+header{position:fixed;top:0;left:0;right:var(--side);height:var(--head);padding:12px 24px;
+  background:rgba(246,245,242,.94);backdrop-filter:blur(6px);border-bottom:1px solid var(--b1);
+  display:flex;align-items:center;gap:20px;z-index:5}
+.htxt{flex:1;min-width:0}
+h1{margin:0;font-size:18px;font-weight:700;line-height:1.3}
+.sub{margin-top:2px;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.legend{display:flex;flex-wrap:nowrap;gap:12px;margin-top:7px;font-size:11.5px;color:var(--muted);overflow-x:auto;scrollbar-width:none}
+.legend::-webkit-scrollbar{display:none}
+.legend span{display:inline-flex;align-items:center;gap:5px;white-space:nowrap}
+.legend i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.lg-nf{font-family:var(--mono);font-size:10.5px;color:var(--green);background:var(--greenbg);box-shadow:inset 3px 0 0 var(--green);padding:1px 6px 1px 8px;border-radius:3px;direction:ltr}
+.zoom{display:flex;gap:4px;direction:ltr;flex:none}
+.zoom button{height:30px;min-width:30px;padding:0 10px;border:1px solid var(--b1);background:#fff;border-radius:6px;cursor:pointer;font-size:13px}
+.zoom button:hover{border-color:#bdb8ae}
+
+/* ---------- canvas ---------- */
+#wrap{position:fixed;top:var(--head);left:0;right:var(--side);bottom:0;overflow:auto;direction:ltr}
+#sizer{position:relative}
+#stage{position:absolute;top:0;left:0;transform-origin:0 0}
+#lines{position:absolute;top:0;left:0;overflow:visible;pointer-events:none}
+#lines g{transition:opacity .18s}
+#lines path{fill:none;stroke-width:1.3;transition:stroke .18s,stroke-width .18s}
+#lines .n path{stroke:#6f6a61}#lines .n circle,#lines .n line{fill:#6f6a61;stroke:#6f6a61}
+#lines .o path{stroke:#b3aea4}#lines .o circle,#lines .o line{fill:#b3aea4;stroke:#b3aea4}
+#lines .d path{stroke-dasharray:4 4}
+#lines line{stroke-width:2}
+#lines.focusing g{opacity:.08}
+#lines.focusing g.on{opacity:1}
+#lines g.on path{stroke:var(--ink);stroke-width:2}
+#lines g.on circle,#lines g.on line{fill:var(--ink);stroke:var(--ink)}
+
+.card{position:absolute;width:320px;background:#fff;border-radius:8px;overflow:hidden;cursor:pointer;
+  box-shadow:0 0 0 1px var(--b1),0 1px 2px rgba(0,0,0,.04);transition:opacity .18s,box-shadow .18s;direction:ltr}
+.card .bar{height:4px}
+.ch{height:46px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--b2)}
+.ch .en{font-family:var(--mono);font-weight:600;font-size:14px;white-space:nowrap}
+.ch .pin{display:none;font-size:12px}
+.card.pinned .ch .pin{display:inline}
+.tag{font-family:var(--mono);font-size:9.5px;font-weight:600;letter-spacing:.05em;padding:2px 6px;border-radius:3px;flex:none}
+.t-new{color:var(--green);background:var(--greenbg)}
+.t-mod{color:var(--amber);background:var(--amberbg)}
+.t-old{color:#8a867e;background:#f1efeb}
+.ch .ar{margin-left:auto;direction:rtl;color:var(--muted);font-size:12.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.card.old .ch .en{color:#8a867e}
+.row{height:28px;display:flex;align-items:center;gap:8px;padding:0 12px;border-bottom:1px solid var(--b2)}
+.row .k{width:20px;flex:none;font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--muted)}
+.row .fn{font-family:var(--mono);font-size:13px;white-space:nowrap}
+.row .nt{flex:1;min-width:0;text-align:right;direction:rtl;color:var(--muted);font-size:11.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.row.nf{background:var(--greenbg);box-shadow:inset 3px 0 0 var(--green)}
+.row.nf .k,.row.nf .fn{color:var(--green)}
+.cf{height:30px;display:flex;align-items:center;padding:0 12px;background:#faf9f7;font-family:var(--mono);font-size:11px;color:#9a968e}
+body.focusing .card.dim{opacity:.28}
+.card.active{box-shadow:0 0 0 2px var(--ink),0 12px 30px rgba(0,0,0,.13)}
+
+/* ---------- sidebar ---------- */
+aside{position:fixed;top:0;right:0;bottom:0;width:var(--side);background:#fff;border-left:1px solid var(--b1);
+  overflow-y:auto;padding:28px 26px 40px;z-index:6}
+.x{position:absolute;top:18px;left:18px;width:30px;height:30px;border:1px solid var(--b1);background:#fff;border-radius:6px;cursor:pointer;font-size:13px}
+.x:hover{border-color:#bdb8ae}
+.eyebrow{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--muted);font-weight:500}
+.eyebrow i{width:9px;height:9px;border-radius:50%;display:inline-block}
+.big{font-size:22px;margin:10px 0 8px;line-height:1.35}
+.hint{color:var(--muted);font-size:14px;line-height:1.8;margin:0 0 18px}
+.stats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:24px}
+.stats div{border:1px solid var(--b2);border-radius:8px;padding:12px 14px}
+.stats b{display:block;font-family:var(--mono);font-size:24px;font-weight:600}
+.stats span{font-size:12.5px;color:var(--muted)}
+.tn{font-family:var(--mono);font-size:22px;font-weight:600;margin:10px 0 2px;direction:ltr;text-align:right}
+.tar{color:var(--muted);font-size:14px}
+.tldr{font-size:16px;font-weight:500;line-height:1.7;margin:14px 0}
+.ex{background:#f5f4f1;border-radius:8px;padding:12px 14px;font-size:13.5px;line-height:1.8;color:#3d3b37}
+.ex b{display:block;font-size:11.5px;color:var(--muted);margin-bottom:2px;font-weight:600}
+.sec{margin-top:24px}
+.sec h3{font-size:12.5px;color:var(--muted);font-weight:600;margin:0 0 10px;letter-spacing:.01em}
+.sec p{margin:0 0 8px;font-size:14px;line-height:1.85}
+code.c{font-family:var(--mono);font-size:12px;background:#f1efeb;border-radius:4px;padding:1px 6px;direction:ltr;unicode-bidi:isolate;white-space:nowrap}
+code.g{color:var(--green);background:var(--greenbg)}
+.adds{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px}
+.kl{list-style:none;margin:0;padding:0}
+.kl li{display:flex;gap:10px;align-items:baseline;padding:8px 0;border-bottom:1px solid var(--b2);font-size:13.5px;line-height:1.7}
+.kl li:last-child{border-bottom:0}
+.kl code{flex:none}
+.pills{display:flex;flex-wrap:wrap;gap:6px}
+.pill{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--b1);border-radius:999px;padding:3px 10px 3px 4px;font-size:12.5px}
+.pill code{font-family:var(--mono);font-size:11px;color:var(--muted);background:#f5f4f1;border-radius:999px;padding:1px 7px;direction:ltr}
+.rels{display:flex;flex-wrap:wrap;gap:6px}
+.rc{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--b1);background:#fff;border-radius:6px;padding:4px 9px;cursor:pointer;direction:ltr}
+.rc:hover{border-color:var(--ink)}
+.rc i{width:8px;height:8px;border-radius:2px;display:inline-block}
+.rc span{font-family:var(--mono);font-size:12.5px}
+.rc em{font-style:normal;font-family:var(--mono);font-size:10.5px;color:var(--muted)}
+.rule{margin-top:24px;background:var(--amberbg);border-right:3px solid var(--amberbd);border-radius:6px;padding:12px 14px;font-size:13.5px;line-height:1.85}
+.rule b{display:block;font-size:12px;color:var(--amber);margin-bottom:2px}
+
+/* ---------- mobile ---------- */
+@media (max-width:900px){
+  :root{--head:84px}
+  header{right:0;padding:10px 14px;gap:10px}
+  h1{font-size:16px}
+  #wrap{right:0}
+  aside{top:auto;left:0;width:100%;height:46vh;border-left:0;border-top:1px solid var(--b1);border-radius:16px 16px 0 0;
+    box-shadow:0 -10px 30px rgba(0,0,0,.12);transform:translateY(105%);transition:transform .25s ease;padding:22px 16px 32px}
+  body.has-focus aside{transform:none}
+  .zoom button{min-width:28px;height:28px;padding:0 8px}
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="htxt">
+    <h1 id="title"></h1>
+    <div class="sub" id="sub"></div>
+    <div class="legend" id="legend"></div>
+  </div>
+  <div class="zoom">
+    <button id="zOut" title="تصغير">−</button>
+    <button id="zFit" title="ملاءمة العرض">ملاءمة</button>
+    <button id="zIn" title="تكبير">+</button>
+  </div>
+</header>
+<div id="wrap"><div id="sizer"><div id="stage"><svg id="lines"></svg></div></div></div>
+<aside id="side"></aside>
+
+<script>
+/* =====================================================================
+   DATA — هذا هو الجزء الوحيد الذي تحتاج تغييره لمخططك
+   ===================================================================== */
+
+// معلومات الصفحة + نصوص الحالة الفارغة
+const META = {
+  project: 'متجر تجريبي · الاشتراكات والولاء',
+  title: 'مخطط قاعدة البيانات — ميزة الاشتراكات ونقاط الولاء',
+  hint: 'كل بطاقة جدول. الأخضر جديد، والصفوف الخضراء داخل جدول قديم حقول مضافة. اضغط على جدول لتثبيته، واضغط على مكان فارغ للرجوع.',
+  idea: [
+    'العميل يشترك في `Plan` فينشأ `Subscription` يولّد `Invoice` كل دورة، وتُدفع عبر `Payment`.',
+    'كل `Order` مكتمل يضيف حركة في `PointTransactions`، والرصيد يُحسب منها لا يُخزَّن يدوياً.'
+  ],
+  rule: 'لا تحذف أي سجل مالي أو حركة نقاط — التصحيح يكون بسجل جديد معاكس.',
+  stats: null // أو: { newTables: 11, modTables: 2, newFields: 5, newEnums: 7 }
+};
+
+// المجموعات وألوانها
+const G = {
+  sub: { c: 'oklch(0.64 0.11 250)', ar: 'الاشتراكات' },
+  pay: { c: 'oklch(0.64 0.11 155)', ar: 'المدفوعات' },
+  loy: { c: 'oklch(0.72 0.12 75)',  ar: 'الولاء والنقاط' },
+  ntf: { c: 'oklch(0.62 0.11 305)', ar: 'الإشعارات' },
+  aud: { c: 'oklch(0.62 0.12 25)',  ar: 'التدقيق' },
+  old: { c: '#c9c5bd',              ar: 'جدول قائم' }
+};
+
+const f = (name, type, key = '', note = '', isNew = false) => ({ name, type, key, note, isNew });
+
+const T = {
+  /* ---------- العمود 0: جداول قائمة ---------- */
+  Users: {
+    col: 0, group: 'old', isNew: false, mod: true, ar: 'المستخدمون',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('Email', 'nvarchar(256)', 'UQ', 'البريد الإلكتروني'),
+      f('FullName', 'nvarchar(120)', '', 'الاسم الكامل'),
+      f('Phone', 'varchar(20)', '', 'رقم الجوال'),
+      f('ReferralCode', 'varchar(12)', 'UQ', 'كود الإحالة', true),
+      f('LoyaltyTier', 'tinyint', '', 'مستوى الولاء (نسخة للعرض)', true),
+      f('MarketingOptIn', 'bit', '', 'موافقة على التسويق', true)
+    ],
+    tldr: 'المستخدم نفسه — أضفنا له كود إحالة ومستوى ولاء محفوظ للعرض السريع.',
+    ex: 'سارة مسجّلة من سنة؛ الآن عندها `ReferralCode = SARA24` ومستواها فضي.',
+    keys: [['Email', 'فريد، وهو معرّف الدخول.']],
+    newKeys: [
+      ['ReferralCode', 'كود فريد يشاركه المستخدم؛ يُولَّد مرة واحدة ولا يتغير.'],
+      ['LoyaltyTier', 'نسخة من `LoyaltyAccounts.Tier` لتسريع العرض — المصدر الحقيقي هناك.'],
+      ['MarketingOptIn', 'لازم يكون `1` قبل إرسال أي إشعار تسويقي.']
+    ],
+    rule: 'لا تعدّل `LoyaltyTier` يدوياً؛ يتحدّث تلقائياً عند تغيّر مستوى حساب الولاء.'
+  },
+  Products: {
+    col: 0, group: 'old', isNew: false, mod: false, ar: 'المنتجات',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('Sku', 'varchar(40)', 'UQ', 'رمز المنتج'),
+      f('Name', 'nvarchar(200)', '', 'اسم المنتج'),
+      f('Price', 'decimal(10,2)', '', 'السعر الحالي'),
+      f('Stock', 'int', '', 'الكمية المتوفرة'),
+      f('IsActive', 'bit', '', 'معروض للبيع؟')
+    ],
+    tldr: 'كتالوج المنتجات كما هو — ما تغيّر فيه شيء، لكن الاشتراكات صارت تشير إليه.',
+    ex: 'كيس قهوة 1 كجم، `Sku = COF-1KG`، سعره 89.',
+    keys: [['Sku', 'فريد، ويُستخدم في الربط مع المخزون.']]
+  },
+  Orders: {
+    col: 0, group: 'old', isNew: false, mod: true, ar: 'الطلبات',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'صاحب الطلب'),
+      f('Total', 'decimal(10,2)', '', 'الإجمالي'),
+      f('Status', 'tinyint', '', 'حالة الطلب'),
+      f('PlacedAt', 'datetime2', '', 'وقت الطلب'),
+      f('SubscriptionId', 'bigint', 'FK', 'إن كان الطلب من اشتراك', true),
+      f('PointsEarned', 'int', '', 'النقاط المكتسبة', true)
+    ],
+    tldr: 'الطلب نفسه — صار يعرف إذا كان جاي من اشتراك، وكم نقطة أعطى.',
+    ex: 'طلب شهري تلقائي لقهوة: `SubscriptionId = 42` و`PointsEarned = 89`.',
+    keys: [['UserId', 'صاحب الطلب.']],
+    newKeys: [
+      ['SubscriptionId', '`null` للطلبات العادية؛ قيمة للطلبات المولّدة من اشتراك.'],
+      ['PointsEarned', 'تُحسب عند اكتمال الطلب فقط، وتنعكس كحركة `Earn`.']
+    ],
+    rule: 'لا تعطي نقاط لطلب ملغى أو مسترجع — راجع `Status` قبل إنشاء الحركة.'
+  },
+
+  /* ---------- العمود 1: الاشتراكات ---------- */
+  Plans: {
+    col: 1, group: 'sub', isNew: true, mod: false, ar: 'باقات الاشتراك',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('Code', 'varchar(30)', 'UQ', 'رمز الباقة'),
+      f('NameAr', 'nvarchar(80)', '', 'اسم الباقة'),
+      f('Interval', 'tinyint', '', 'وحدة الدورة'),
+      f('IntervalCount', 'int', '', 'كل كم وحدة'),
+      f('Price', 'decimal(10,2)', '', 'سعر الدورة'),
+      f('TrialDays', 'int', '', 'أيام التجربة')
+    ],
+    tldr: 'قالب الاشتراك: كل كم يتجدد وبكم.',
+    ex: 'باقة «قهوة كل أسبوعين»: `Interval = Weekly` و`IntervalCount = 2`.',
+    keys: [
+      ['Code', 'ثابت ويُستخدم في الروابط والتقارير.'],
+      ['IntervalCount', 'يُضرب في `Interval` لحساب الدورة.']
+    ],
+    enumName: 'BillingInterval',
+    enums: [['Weekly', 'أسبوعي'], ['Monthly', 'شهري'], ['Yearly', 'سنوي']],
+    rule: 'تغيير السعر لا يمس المشتركين الحاليين — أنشئ باقة جديدة.'
+  },
+  Subscriptions: {
+    col: 1, group: 'sub', isNew: true, mod: false, ar: 'اشتراكات العملاء',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'المشترك'),
+      f('PlanId', 'bigint', 'FK', 'الباقة'),
+      f('PaymentMethodId', 'bigint', 'FK', 'وسيلة الدفع'),
+      f('Status', 'tinyint', '', 'حالة الاشتراك'),
+      f('CurrentPeriodEnd', 'datetime2', '', 'نهاية الدورة الحالية'),
+      f('CancelAt', 'datetime2', '', 'موعد الإلغاء (اختياري)')
+    ],
+    tldr: 'اشتراك عميل محدد في باقة محددة — هو اللي يولّد الفواتير والطلبات.',
+    ex: 'سارة مشتركة في «قهوة كل أسبوعين» من مارس، والدورة الحالية تنتهي 15 نوفمبر.',
+    keys: [
+      ['Status', 'يحدد هل نولّد فاتورة الدورة القادمة أم لا.'],
+      ['CurrentPeriodEnd', 'عنده تُصدر الفاتورة التالية.'],
+      ['CancelAt', 'إلغاء مؤجل لنهاية الدورة بدل الإلغاء الفوري.']
+    ],
+    enumName: 'SubscriptionStatus',
+    enums: [['Trialing', 'تجريبي'], ['Active', 'نشط'], ['PastDue', 'متأخر الدفع'], ['Paused', 'موقوف مؤقتاً'], ['Canceled', 'ملغى']],
+    rule: 'الانتقال لـ `PastDue` يكون فقط من فشل `Payment`، مو يدوياً.'
+  },
+  SubscriptionItems: {
+    col: 1, group: 'sub', isNew: true, mod: false, ar: 'عناصر الاشتراك',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('SubscriptionId', 'bigint', 'FK', 'الاشتراك'),
+      f('ProductId', 'bigint', 'FK', 'المنتج'),
+      f('Quantity', 'int', '', 'الكمية لكل دورة'),
+      f('UnitPrice', 'decimal(10,2)', '', 'السعر المثبّت')
+    ],
+    tldr: 'وش يوصل للعميل في كل دورة.',
+    ex: 'اشتراك سارة: كيسين `COF-1KG` بسعر 85 لكل كيس.',
+    keys: [['UnitPrice', 'السعر وقت الاشتراك — لا يتغير مع تغير سعر المنتج.']]
+  },
+
+  /* ---------- العمود 2: المدفوعات ---------- */
+  PaymentMethods: {
+    col: 2, group: 'pay', isNew: true, mod: false, ar: 'وسائل الدفع',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'صاحب البطاقة'),
+      f('Provider', 'varchar(20)', '', 'بوابة الدفع'),
+      f('Token', 'varchar(128)', 'UQ', 'مرجع البطاقة لدى البوابة'),
+      f('Last4', 'char(4)', '', 'آخر 4 أرقام'),
+      f('ExpMonth', 'tinyint', '', 'شهر الانتهاء'),
+      f('IsDefault', 'bit', '', 'الافتراضية؟')
+    ],
+    tldr: 'بطاقات العميل المحفوظة — كمرجع من البوابة، مو البطاقة نفسها.',
+    ex: 'فيزا تنتهي بـ `4242`، وهي الافتراضية لسارة.',
+    keys: [
+      ['Token', 'هو اللي نرسله للبوابة عند الخصم.'],
+      ['IsDefault', 'واحدة فقط لكل مستخدم.']
+    ],
+    rule: 'لا نخزّن رقم البطاقة أبداً — فقط `Token` و`Last4` للعرض.'
+  },
+  Invoices: {
+    col: 2, group: 'pay', isNew: true, mod: false, ar: 'الفواتير',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('SubscriptionId', 'bigint', 'FK', 'الاشتراك'),
+      f('Number', 'varchar(20)', 'UQ', 'رقم الفاتورة'),
+      f('Amount', 'decimal(10,2)', '', 'المبلغ'),
+      f('Status', 'tinyint', '', 'حالة الفاتورة'),
+      f('DueAt', 'datetime2', '', 'تاريخ الاستحقاق'),
+      f('PaidAt', 'datetime2', '', 'تاريخ السداد')
+    ],
+    tldr: 'مطالبة مالية لكل دورة اشتراك.',
+    ex: 'فاتورة `INV-2026-0142` بمبلغ 170، مستحقة 15 نوفمبر.',
+    keys: [['Number', 'تسلسلي وفريد، ويظهر للعميل.']],
+    enumName: 'InvoiceStatus',
+    enums: [['Draft', 'مسودة'], ['Open', 'مستحقة'], ['Paid', 'مدفوعة'], ['Void', 'ملغاة'], ['Uncollectible', 'متعذّرة التحصيل']],
+    rule: 'الفاتورة المدفوعة لا تُعدَّل — الاسترجاع يكون بسجل `Payment` من نوع `Refunded`.'
+  },
+  Payments: {
+    col: 2, group: 'pay', isNew: true, mod: false, ar: 'محاولات الدفع',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('InvoiceId', 'bigint', 'FK', 'الفاتورة'),
+      f('PaymentMethodId', 'bigint', 'FK', 'البطاقة المستخدمة'),
+      f('Amount', 'decimal(10,2)', '', 'المبلغ'),
+      f('Status', 'tinyint', '', 'نتيجة المحاولة'),
+      f('GatewayRef', 'varchar(64)', 'UQ', 'مرجع العملية'),
+      f('FailureCode', 'varchar(40)', '', 'سبب الفشل')
+    ],
+    tldr: 'كل محاولة خصم — ناجحة أو فاشلة — سطر مستقل.',
+    ex: 'محاولتين لنفس الفاتورة: الأولى `Failed` (رصيد غير كافٍ) والثانية `Succeeded`.',
+    keys: [['GatewayRef', 'يمنع تسجيل نفس العملية مرتين.']],
+    enumName: 'PaymentStatus',
+    enums: [['Pending', 'قيد المعالجة'], ['Succeeded', 'ناجحة'], ['Failed', 'فاشلة'], ['Refunded', 'مسترجعة']]
+  },
+
+  /* ---------- العمود 3: الولاء ---------- */
+  LoyaltyAccounts: {
+    col: 3, group: 'loy', isNew: true, mod: false, ar: 'حسابات الولاء',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'فريد — حساب لكل مستخدم'),
+      f('Balance', 'int', '', 'الرصيد الحالي'),
+      f('LifetimePoints', 'int', '', 'إجمالي ما كسبه'),
+      f('Tier', 'tinyint', '', 'المستوى')
+    ],
+    tldr: 'محفظة النقاط لكل مستخدم.',
+    ex: 'سارة: رصيدها 1,240 نقطة وكسبت 3,900 من البداية — مستوى فضي.',
+    keys: [
+      ['Balance', 'مجموع حركات `PointTransactions` — يُحدَّث معها.'],
+      ['LifetimePoints', 'يحدد المستوى، ولا ينقص عند الصرف.']
+    ],
+    enumName: 'LoyaltyTier',
+    enums: [['Bronze', 'برونزي'], ['Silver', 'فضي'], ['Gold', 'ذهبي'], ['Platinum', 'بلاتيني']]
+  },
+  PointTransactions: {
+    col: 3, group: 'loy', isNew: true, mod: false, ar: 'حركات النقاط',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('LoyaltyAccountId', 'bigint', 'FK', 'حساب الولاء'),
+      f('OrderId', 'bigint', 'FK', 'الطلب (عند الكسب)'),
+      f('RewardId', 'bigint', 'FK', 'المكافأة (عند الصرف)'),
+      f('Type', 'tinyint', '', 'نوع الحركة'),
+      f('Points', 'int', '', 'موجب للكسب، سالب للصرف'),
+      f('ExpiresAt', 'datetime2', '', 'تاريخ انتهاء النقاط')
+    ],
+    tldr: 'دفتر النقاط: كل كسب أو صرف أو انتهاء سطر جديد.',
+    ex: 'طلب بـ 89 → `Earn +89`؛ صرف كوب مجاني → `Redeem −500`.',
+    keys: [
+      ['Points', 'الإشارة تحدد الاتجاه، والرصيد = مجموعها.'],
+      ['OrderId / RewardId', 'واحد منهم فقط حسب `Type`.']
+    ],
+    enumName: 'PointTxType',
+    enums: [['Earn', 'كسب'], ['Redeem', 'صرف'], ['Expire', 'انتهاء'], ['Adjust', 'تصحيح']],
+    rule: 'لا تحذف أي حركة — التصحيح يكون بحركة `Adjust`.'
+  },
+  Rewards: {
+    col: 3, group: 'loy', isNew: true, mod: false, ar: 'المكافآت',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('Code', 'varchar(30)', 'UQ', 'رمز المكافأة'),
+      f('TitleAr', 'nvarchar(120)', '', 'عنوان المكافأة'),
+      f('CostPoints', 'int', '', 'تكلفتها بالنقاط'),
+      f('Stock', 'int', '', 'المتبقي (اختياري)')
+    ],
+    tldr: 'وش يقدر العميل يشتري بنقاطه.',
+    ex: '«كوب مجاني» بـ 500 نقطة، متبقي 120.',
+    keys: [['Stock', '`null` = غير محدود.']]
+  },
+
+  /* ---------- العمود 4: الإشعارات والتدقيق ---------- */
+  Notifications: {
+    col: 4, group: 'ntf', isNew: true, mod: false, ar: 'الإشعارات',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'المستلم'),
+      f('Channel', 'tinyint', '', 'القناة'),
+      f('TemplateKey', 'varchar(60)', '', 'قالب الرسالة'),
+      f('Payload', 'nvarchar(max)', '', 'متغيرات القالب (JSON)'),
+      f('SentAt', 'datetime2', '', 'وقت الإرسال')
+    ],
+    tldr: 'سجل كل رسالة خرجت للعميل وبأي قناة.',
+    ex: '`invoice.failed` عبر SMS لسارة بعد فشل الدفع.',
+    keys: [['TemplateKey', 'يربط الرسالة بقالبها بدل تخزين النص كامل.']],
+    enumName: 'NotificationChannel',
+    enums: [['Email', 'بريد'], ['Sms', 'رسالة نصية'], ['Push', 'إشعار تطبيق']]
+  },
+  AuditLogs: {
+    col: 4, group: 'aud', isNew: true, mod: false, ar: 'سجل التدقيق',
+    fields: [
+      f('Id', 'bigint', 'PK'),
+      f('UserId', 'bigint', 'FK', 'من قام بالفعل'),
+      f('EntityType', 'varchar(60)', '', 'نوع الكيان'),
+      f('EntityId', 'bigint', '', 'معرّف الكيان'),
+      f('Action', 'varchar(20)', '', 'الفعل'),
+      f('Before', 'nvarchar(max)', '', 'القيم قبل'),
+      f('After', 'nvarchar(max)', '', 'القيم بعد')
+    ],
+    tldr: 'من غيّر وش ومتى — لأي جدول حساس.',
+    ex: 'موظف ألغى اشتراك: `EntityType = Subscription` و`Action = cancel`.',
+    keys: [['EntityType + EntityId', 'ربط مرن بأي جدول بدون مفتاح أجنبي.']],
+    rule: 'جدول إلحاق فقط (append-only) — لا تحديث ولا حذف.'
+  }
+};
+
+// [الجدول الابن, حقل FK, الجدول الأب, نوع العلاقة, خط متقطع؟]
+const R = [
+  ['Orders', 'UserId', 'Users', '1:N'],
+  ['Orders', 'SubscriptionId', 'Subscriptions', '1:N'],
+  ['Subscriptions', 'UserId', 'Users', '1:N'],
+  ['Subscriptions', 'PlanId', 'Plans', '1:N'],
+  ['Subscriptions', 'PaymentMethodId', 'PaymentMethods', '1:N'],
+  ['SubscriptionItems', 'SubscriptionId', 'Subscriptions', '1:N'],
+  ['SubscriptionItems', 'ProductId', 'Products', '1:N'],
+  ['PaymentMethods', 'UserId', 'Users', '1:N'],
+  ['Invoices', 'SubscriptionId', 'Subscriptions', '1:N'],
+  ['Payments', 'InvoiceId', 'Invoices', '1:N'],
+  ['Payments', 'PaymentMethodId', 'PaymentMethods', '1:N'],
+  ['LoyaltyAccounts', 'UserId', 'Users', '1:1'],
+  ['PointTransactions', 'LoyaltyAccountId', 'LoyaltyAccounts', '1:N'],
+  ['PointTransactions', 'OrderId', 'Orders', '1:N'],
+  ['PointTransactions', 'RewardId', 'Rewards', '1:N'],
+  ['Notifications', 'UserId', 'Users', '1:N'],
+  ['AuditLogs', 'UserId', 'Users', '1:N', true]
+];
+
+/* =====================================================================
+   ENGINE — لا تحتاج تعديل ما تحت هذا السطر
+   ===================================================================== */
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const fmt = s => esc(s).replace(/`([^`]+)`/g, '<code class="c">$1</code>');
+const st = t => t.isNew ? 'new' : t.mod ? 'mod' : 'old';
+const grp = t => G[t.group] || G.old;
+const $ = id => document.getElementById(id);
+
+const W = 320, GAP = 90, VG = 50, PAD = 40;
+const wrap = $('wrap'), sizer = $('sizer'), stage = $('stage'), svg = $('lines'), side = $('side');
+let stageW = 0, stageH = 0, scale = 1, fitMode = true, pinned = null;
+
+// ---- header ----
+const names = Object.keys(T);
+const S = META.stats || {
+  newTables: names.filter(n => T[n].isNew).length,
+  modTables: names.filter(n => T[n].mod && !T[n].isNew).length,
+  newFields: names.reduce((a, n) => a + (T[n].isNew ? 0 : T[n].fields.filter(x => x.isNew).length), 0),
+  newEnums: names.filter(n => T[n].enumName && (T[n].isNew || T[n].mod)).length
+};
+document.title = META.title;
+$('title').textContent = META.title;
+$('sub').textContent = `مرّر أو اضغط على أي جدول · ${S.newTables} جدول جديد · ${S.modTables} معدّل`;
+$('legend').innerHTML = Object.values(G).map(g => `<span><i style="background:${esc(g.c)}"></i>${esc(g.ar)}</span>`).join('')
+  + `<span><b class="lg-nf">+ field</b> حقل جديد في جدول قديم</span>`;
+
+// ---- cards ----
+const TAGS = { new: ['NEW', 't-new'], mod: ['MODIFIED', 't-mod'], old: ['EXISTING', 't-old'] };
+const colY = {};
+let maxCol = 0;
+for (const n of names) {
+  const t = T[n], s = st(t), tag = TAGS[s];
+  const el = document.createElement('div');
+  el.className = 'card' + (s === 'old' ? ' old' : '');
+  el.dataset.t = n;
+  el.innerHTML =
+    `<div class="bar" style="background:${esc(grp(t).c)}"></div>` +
+    `<div class="ch"><span class="en">${esc(n)}</span><span class="pin">📌</span><span class="tag ${tag[1]}">${tag[0]}</span><span class="ar" title="${esc(t.ar)}">${esc(t.ar)}</span></div>` +
+    t.fields.map(x =>
+      `<div class="row${x.isNew && !t.isNew ? ' nf' : ''}" data-f="${esc(x.name)}" title="${esc([x.name, x.type, x.note].filter(Boolean).join(' · '))}">` +
+      `<span class="k">${esc(x.key || (x.isNew && !t.isNew ? '+' : ''))}</span><span class="fn">${esc(x.name)}</span><span class="nt">${esc(x.note)}</span></div>`
+    ).join('') +
+    `<div class="cf">createdAt · updatedAt${t.isNew ? ' · status' : ''}</div>`;
+  stage.appendChild(el);
+  t._el = el;
+  maxCol = Math.max(maxCol, t.col);
+}
+
+function layout() {
+  for (const k in colY) delete colY[k];
+  for (const n of names) {
+    const t = T[n];
+    t._x = PAD + t.col * (W + GAP);
+    t._y = colY[t.col] ?? PAD;
+    t._el.style.left = t._x + 'px';
+    t._el.style.top = t._y + 'px';
+    t._h = t._el.offsetHeight;
+    colY[t.col] = t._y + t._h + VG;
+  }
+  stageW = PAD * 2 + (maxCol + 1) * W + maxCol * GAP;
+  stageH = Math.max(...Object.values(colY)) - VG + PAD;
+  stage.style.width = stageW + 'px';
+  stage.style.height = stageH + 'px';
+  svg.setAttribute('width', stageW);
+  svg.setAttribute('height', stageH);
+}
+
+// ---- relationship lines ----
+function anchor(n, field) {
+  const t = T[n];
+  const rows = [...t._el.querySelectorAll('.row')];
+  const row = (field && rows.find(r => r.dataset.f === field)) || rows[0];
+  return { y: t._y + row.offsetTop + row.offsetHeight / 2, l: t._x, r: t._x + W, col: t.col };
+}
+function drawLines() {
+  let out = '';
+  for (const [c, cf, p, , dashed] of R) {
+    if (!T[c] || !T[p]) continue;
+    const a = anchor(c, cf), b = anchor(p, null);
+    let x1, x2, d, barX;
+    if (a.col === b.col) {
+      x1 = a.l; x2 = b.l;
+      d = `M${x1},${a.y} C${x1 - 34},${a.y} ${x2 - 34},${b.y} ${x2},${b.y}`;
+      barX = x2 - 5;
+    } else {
+      const right = a.col < b.col;
+      x1 = right ? a.r : a.l; x2 = right ? b.l : b.r;
+      const off = Math.max(60, Math.abs(x2 - x1) * 0.45) * (right ? 1 : -1);
+      d = `M${x1},${a.y} C${x1 + off},${a.y} ${x2 - off},${b.y} ${x2},${b.y}`;
+      barX = right ? x2 - 5 : x2 + 5;
+    }
+    const fld = T[c].fields.find(x => x.name === cf);
+    const isNew = T[c].isNew || (fld && fld.isNew);
+    out += `<g class="${isNew ? 'n' : 'o'}${dashed ? ' d' : ''}" data-a="${esc(c)}" data-b="${esc(p)}">` +
+      `<path d="${d}"/><circle cx="${x1}" cy="${a.y}" r="3"/>` +
+      `<line x1="${barX}" y1="${b.y - 6}" x2="${barX}" y2="${b.y + 6}"/></g>`;
+  }
+  svg.innerHTML = out;
+}
+
+// ---- relations lookup ----
+function relsOf(n) {
+  const seen = new Set(), list = [];
+  for (const [c, , p, type] of R) {
+    const other = c === n ? p : p === n ? c : null;
+    if (!other) continue;
+    const key = other + type;
+    if (seen.has(key)) continue;
+    seen.add(key);
+    list.push([other, type]);
+  }
+  return list;
+}
+
+// ---- focus / pin ----
+function focus(n) {
+  const rel = new Set(relsOf(n).map(x => x[0]));
+  document.body.classList.add('focusing', 'has-focus');
+  for (const k of names) {
+    const el = T[k]._el;
+    el.classList.toggle('dim', k !== n && !rel.has(k));
+    el.classList.toggle('active', k === n);
+    el.classList.toggle('pinned', k === pinned);
+  }
+  svg.classList.add('focusing');
+  for (const g of svg.children) g.classList.toggle('on', g.dataset.a === n || g.dataset.b === n);
+  renderTable(n);
+}
+function reset() {
+  pinned = null;
+  document.body.classList.remove('focusing', 'has-focus');
+  for (const k of names) T[k]._el.classList.remove('dim', 'active', 'pinned');
+  svg.classList.remove('focusing');
+  for (const g of svg.children) g.classList.remove('on');
+  renderEmpty();
+}
+function pin(n) { pinned = n; focus(n); }
+function scrollToTable(n) {
+  const t = T[n];
+  wrap.scrollTo({
+    left: Math.max(0, t._x * scale - (wrap.clientWidth - W * scale) / 2),
+    top: Math.max(0, t._y * scale - 30),
+    behavior: 'smooth'
+  });
+}
+
+stage.addEventListener('mouseover', e => {
+  const c = e.target.closest('.card');
+  if (c && !pinned) focus(c.dataset.t);
+});
+stage.addEventListener('mouseout', e => {
+  const c = e.target.closest('.card');
+  if (c && !pinned && !c.contains(e.relatedTarget)) reset();
+});
+wrap.addEventListener('click', e => {
+  const c = e.target.closest('.card');
+  if (!c) { if (pinned) reset(); return; }
+  if (pinned === c.dataset.t) reset(); else pin(c.dataset.t);
+});
+side.addEventListener('click', e => {
+  if (e.target.closest('.x')) return reset();
+  const rc = e.target.closest('.rc');
+  if (rc) { pin(rc.dataset.t); scrollToTable(rc.dataset.t); }
+});
+document.addEventListener('keydown', e => { if (e.key === 'Escape') reset(); });
+
+// ---- sidebar ----
+const sec = (title, body) => `<div class="sec"><h3>${title}</h3>${body}</div>`;
+const keyList = arr => `<ul class="kl">${arr.map(([k, v]) => `<li><code class="c">${esc(k)}</code><span>${fmt(v)}</span></li>`).join('')}</ul>`;
+
+function renderEmpty() {
+  const stats = [[S.newTables, 'جداول جديدة'], [S.modTables, 'جداول معدّلة'], [S.newFields, 'حقول جديدة'], [S.newEnums, 'حالات (Enums) جديدة']];
+  side.innerHTML =
+    `<div class="eyebrow">${esc(META.project)}</div>` +
+    `<h2 class="big">مرّر أو اضغط على أي جدول</h2>` +
+    `<p class="hint">${fmt(META.hint)}</p>` +
+    `<div class="stats">${stats.map(([v, l]) => `<div><b>${esc(v)}</b><span>${l}</span></div>`).join('')}</div>` +
+    sec('الفكرة كلها في سطرين', (META.idea || []).map(l => `<p>${fmt(l)}</p>`).join('')) +
+    (META.rule ? `<div class="rule"><b>قاعدة مهمة</b>${fmt(META.rule)}</div>` : '');
+  side.scrollTop = 0;
+}
+
+function renderTable(n) {
+  const t = T[n], g = grp(t), s = st(t);
+  const label = s === 'new' ? `جدول جديد · ${g.ar}` : s === 'mod' ? 'قائم · أُضيفت حقول' : 'قائم · بدون تغيير';
+  let h =
+    `<button class="x" aria-label="إغلاق" title="إغلاق">✕</button>` +
+    `<div class="eyebrow"><i style="background:${esc(g.c)}"></i>${esc(label)}</div>` +
+    `<h2 class="tn">${esc(n)}${pinned === n ? ' 📌' : ''}</h2>` +
+    `<div class="tar">${esc(t.ar)}</div>`;
+  if (t.tldr) h += `<p class="tldr">${fmt(t.tldr)}</p>`;
+  if (t.ex) h += `<div class="ex"><b>مثال</b>${fmt(t.ex)}</div>`;
+  if (s === 'mod') {
+    const added = t.fields.filter(x => x.isNew);
+    h += sec('ماذا أُضيف؟',
+      `<div class="adds">${added.map(x => `<code class="c g">+ ${esc(x.name)}</code>`).join('')}</div>` +
+      (t.newKeys?.length ? keyList(t.newKeys) : ''));
+  }
+  if (t.keys?.length) h += sec('حقول مهمة', keyList(t.keys));
+  if (t.enumName && t.enums?.length) {
+    h += sec(`الحالات · <code class="c">${esc(t.enumName)}</code>`,
+      `<div class="pills">${t.enums.map(([k, ar, v], i) => `<span class="pill"><code>${esc(k)}=${esc(v ?? i + 1)}</code>${esc(ar)}</span>`).join('')}</div>`);
+  }
+  const rels = relsOf(n);
+  if (rels.length) {
+    h += sec('مرتبط بـ', `<div class="rels">${rels.map(([o, type]) =>
+      `<button class="rc" data-t="${esc(o)}"><i style="background:${esc(grp(T[o]).c)}"></i><span>${esc(o)}</span><em>${esc(type)}</em></button>`).join('')}</div>`);
+  }
+  if (t.rule) h += `<div class="rule"><b>قاعدة مهمة</b>${fmt(t.rule)}</div>`;
+  side.innerHTML = h;
+  side.scrollTop = 0;
+}
+
+// ---- zoom ----
+function setScale(v) {
+  scale = Math.min(1.6, Math.max(0.35, v));
+  stage.style.transform = `scale(${scale})`;
+  sizer.style.width = stageW * scale + 'px';
+  sizer.style.height = stageH * scale + 'px';
+}
+function fit() { fitMode = true; setScale(Math.max(0.55, wrap.clientWidth / stageW)); }
+$('zIn').onclick = () => { fitMode = false; setScale(scale + 0.1); };
+$('zOut').onclick = () => { fitMode = false; setScale(scale - 0.1); };
+$('zFit').onclick = fit;
+let rz;
+window.addEventListener('resize', () => { clearTimeout(rz); rz = setTimeout(() => { if (fitMode) fit(); }, 80); });
+
+// ---- boot ----
+function build() { layout(); drawLines(); fit(); }
+build();
+renderEmpty();
+if (document.fonts?.ready) document.fonts.ready.then(() => { layout(); drawLines(); setScale(scale); });
+</script>
+</body>
+</html>
